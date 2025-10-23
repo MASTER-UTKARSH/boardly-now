@@ -1,21 +1,83 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import BottomNav from "@/components/BottomNav";
 import { Button } from "@/components/ui/button";
-import { CreditCard, Wallet as WalletIcon } from "lucide-react";
+import { CreditCard, Wallet as WalletIcon, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 const Wallet = () => {
-  const [tokens, setTokens] = useState(8);
+  const [tokens, setTokens] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [userId, setUserId] = useState<string | null>(null);
+  const navigate = useNavigate();
   const [transactions] = useState([
     { id: 1, desc: "Added 5 tokens (Card)", amount: 5, cost: 250 },
     { id: 2, desc: "Trip to Main Campus", amount: -1, cost: 0 },
     { id: 3, desc: "Trip to Maths Gate", amount: -1, cost: 0 },
   ]);
 
-  const handleRecharge = (amount: number, cost: number) => {
-    setTokens(tokens + amount);
-    toast.success(`Added ${amount} token${amount > 1 ? 's' : ''} successfully!`);
+  useEffect(() => {
+    const checkAuthAndFetchTokens = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        navigate("/auth");
+        return;
+      }
+
+      setUserId(session.user.id);
+
+      const { data: profile, error } = await supabase
+        .from("profiles")
+        .select("tokens")
+        .eq("user_id", session.user.id)
+        .maybeSingle();
+
+      if (error) {
+        toast.error("Failed to load your token balance.");
+      } else if (profile) {
+        setTokens(profile.tokens);
+      }
+      setLoading(false);
+    };
+
+    checkAuthAndFetchTokens();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!session) {
+        navigate("/auth");
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [navigate]);
+
+  const handleRecharge = async (amount: number, cost: number) => {
+    if (!userId) return;
+
+    const newTokens = tokens + amount;
+    
+    const { error } = await supabase
+      .from("profiles")
+      .update({ tokens: newTokens })
+      .eq("user_id", userId);
+
+    if (error) {
+      toast.error("Failed to recharge tokens.");
+    } else {
+      setTokens(newTokens);
+      toast.success(`Added ${amount} token${amount > 1 ? 's' : ''} successfully!`);
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background pb-24">

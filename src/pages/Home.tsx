@@ -1,22 +1,99 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import TokenBalance from "@/components/TokenBalance";
 import TapButton from "@/components/TapButton";
 import SeatAllocationDialog from "@/components/SeatAllocationDialog";
 import BottomNav from "@/components/BottomNav";
 import LiveBusMap from "@/components/LiveBusMap";
+import { useToast } from "@/hooks/use-toast";
+import { Loader2 } from "lucide-react";
 
 const Home = () => {
-  const [tokens, setTokens] = useState(8);
+  const [tokens, setTokens] = useState(0);
   const [showSeatDialog, setShowSeatDialog] = useState(false);
   const [allocatedSeat, setAllocatedSeat] = useState(12);
+  const [loading, setLoading] = useState(true);
+  const [userId, setUserId] = useState<string | null>(null);
+  const navigate = useNavigate();
+  const { toast } = useToast();
 
-  const handleTap = () => {
-    if (tokens > 0) {
-      setTokens(tokens - 1);
-      setAllocatedSeat(Math.floor(Math.random() * 18) + 1);
-      setShowSeatDialog(true);
+  useEffect(() => {
+    const checkAuthAndFetchTokens = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        navigate("/auth");
+        return;
+      }
+
+      setUserId(session.user.id);
+
+      const { data: profile, error } = await supabase
+        .from("profiles")
+        .select("tokens")
+        .eq("user_id", session.user.id)
+        .maybeSingle();
+
+      if (error) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to load your token balance.",
+        });
+      } else if (profile) {
+        setTokens(profile.tokens);
+      }
+      setLoading(false);
+    };
+
+    checkAuthAndFetchTokens();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!session) {
+        navigate("/auth");
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [navigate, toast]);
+
+  const handleTap = async () => {
+    if (tokens > 0 && userId) {
+      const newTokens = tokens - 1;
+      
+      const { error } = await supabase
+        .from("profiles")
+        .update({ tokens: newTokens })
+        .eq("user_id", userId);
+
+      if (error) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to update tokens.",
+        });
+      } else {
+        setTokens(newTokens);
+        setAllocatedSeat(Math.floor(Math.random() * 18) + 1);
+        setShowSeatDialog(true);
+      }
+    } else if (tokens === 0) {
+      toast({
+        variant: "destructive",
+        title: "No tokens",
+        description: "Please recharge your tokens to board.",
+      });
     }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background pb-28">
