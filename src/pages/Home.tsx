@@ -3,7 +3,7 @@ import TokenBalance from "@/components/TokenBalance";
 import TapButton from "@/components/TapButton";
 import SeatAllocationDialog from "@/components/SeatAllocationDialog";
 import BottomNav from "@/components/BottomNav";
-import { MapPin } from "lucide-react";
+import LiveBusMap from "@/components/LiveBusMap";
 
 const Home = () => {
   const [tokens, setTokens] = useState(8);
@@ -19,23 +19,21 @@ const Home = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background pb-24">
-      <div className="max-w-md mx-auto p-6">
+    <div className="min-h-screen bg-background pb-28">
+      <div className="max-w-4xl mx-auto p-6 mb-8">
         <TokenBalance tokens={tokens} />
 
         <TapButton onTap={handleTap} />
 
-        <div className="bg-card rounded-2xl p-4 space-y-3">
-          <h3 className="text-sm font-semibold text-foreground">Live Bus Location</h3>
-          <div className="bg-secondary rounded-xl h-48 flex items-center justify-center relative overflow-hidden">
-            {/* Simplified map placeholder */}
-            <div className="absolute inset-0 bg-gradient-to-br from-secondary to-muted"></div>
-            <div className="relative z-10 text-center">
-              <MapPin className="w-12 h-12 text-primary mx-auto mb-2" />
-              <p className="text-sm text-muted-foreground">ETA: 5 mins</p>
-              <p className="text-xs text-muted-foreground mt-1">Main Campus Pickup</p>
-            </div>
+        <div className="bg-card rounded-2xl p-4 space-y-3 mb-6">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-foreground">Live Bus Location</h3>
+            <span className="text-xs text-primary font-medium">ETA: 5 mins</span>
           </div>
+          <div className="rounded-xl h-64 md:h-80 overflow-hidden">
+            <LiveBusMap />
+          </div>
+          <p className="text-xs text-muted-foreground text-center">Main Campus Pickup</p>
         </div>
       </div>
 
